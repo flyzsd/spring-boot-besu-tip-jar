@@ -148,6 +148,27 @@ All settings live under the `web3` prefix in `application.yml`:
 | `web3.gas-price` | `0` | Dev network runs with `--min-gas-price=0` |
 | `web3.gas-limit` | `4000000` | Per-transaction gas limit |
 
+## Testing
+
+[`TipJarContractTest`](src/test/kotlin/io/shudong/tipjar/TipJarContractTest.kt) covers the
+contract (ownership, tipping, event emission, reverts, withdrawal) on
+[web3j-evm](https://github.com/hyperledger-labs/web3j-evm)'s in-process EVM — the whole
+suite runs in ~1s with no node or Docker, against the same prague bytecode the build deploys:
+
+```bash
+./mvnw test
+```
+
+Two embedded-EVM quirks worth knowing:
+
+- web3j-evm's Besu internals are not on Maven Central, hence the extra `<repositories>`
+  in `pom.xml`.
+- The embedded chain picks the EVM fork from the *current head timestamp*, and treats a
+  fork time of `0` as unset. [`embedded-genesis.json`](src/test/resources/embedded-genesis.json)
+  therefore sets `pragueTime: 1` **and** genesis `timestamp: 0x1` — with the web3j-evm
+  default (pre-Shanghai DEV genesis), deploying the prague bytecode fails with an
+  all-gas-consumed `PUSH0` invalid-opcode error.
+
 ## Notes
 
 - The Maven build shows a platform warning for the solc image on Apple Silicon

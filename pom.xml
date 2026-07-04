@@ -27,6 +27,22 @@
         <solc.evm-version>prague</solc.evm-version>
     </properties>
 
+    <repositories>
+        <!-- Besu EVM artifacts (pulled in by web3j-evm) are not on Maven Central -->
+        <repository>
+            <id>besu-maven</id>
+            <url>https://hyperledger.jfrog.io/artifactory/besu-maven</url>
+        </repository>
+        <repository>
+            <id>consensys-maven</id>
+            <url>https://artifacts.consensys.net/public/maven/maven</url>
+        </repository>
+        <repository>
+            <id>splunk</id>
+            <url>https://splunk.jfrog.io/splunk/ext-releases-local</url>
+        </repository>
+    </repositories>
+
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -58,6 +74,12 @@
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-test-junit5</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.web3j</groupId>
+            <artifactId>web3j-evm</artifactId>
+            <version>${web3j.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
