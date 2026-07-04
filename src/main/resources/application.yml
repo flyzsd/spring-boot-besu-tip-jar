@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: spring-boot-besu-tip-jar
+
+web3:
+  rpc-url: http://localhost:8545
+  # Besu dev-mode pre-funded account 0xfe3b557e8fb62b89f4916b721be55ceb828dbd73
+  # (publicly known key, local dev only)
+  private-key: "0x8f2a55949038a9610f50fb23b5883af3b4ecb3c3bb792cbcefbd1542c692be63"
+  gas-price: 0
+  gas-limit: 4000000

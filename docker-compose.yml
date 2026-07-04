@@ -1,0 +1,19 @@
+services:
+  besu:
+    image: hyperledger/besu:26.6.1
+    container_name: besu-dev
+    ports:
+      - "8545:8545"
+    volumes:
+      - ./besu:/config:ro
+    command:
+      # Besu 26.x removed PoW and Clique block production, which broke the
+      # built-in --network=dev. Run a single-validator QBFT chain instead.
+      - --genesis-file=/config/genesis.json
+      - --node-private-key-file=/config/nodekey
+      - --rpc-http-enabled
+      - --rpc-http-host=0.0.0.0
+      - --rpc-http-cors-origins=all
+      - --host-allowlist=*
+      - --min-gas-price=0
+    restart: unless-stopped
