@@ -150,14 +150,23 @@ All settings live under the `web3` prefix in `application.yml`:
 
 ## Testing
 
-[`TipJarContractTest`](src/test/kotlin/io/shudong/tipjar/TipJarContractTest.kt) covers the
-contract (ownership, tipping, event emission, reverts, withdrawal) on
-[web3j-evm](https://github.com/hyperledger-labs/web3j-evm)'s in-process EVM — the whole
-suite runs in ~1s with no node or Docker, against the same prague bytecode the build deploys:
-
 ```bash
 ./mvnw test
 ```
+
+Two complementary suites:
+
+- **Contract tests** — [`TipJarContractTest`](src/test/kotlin/io/shudong/tipjar/TipJarContractTest.kt)
+  covers the contract logic (ownership, tipping, event emission, reverts, withdrawal) on
+  [web3j-evm](https://github.com/hyperledger-labs/web3j-evm)'s in-process EVM — runs in ~1s
+  with no node or Docker, against the same prague bytecode the build deploys.
+- **Integration tests** — [`TipJarApiIntegrationTest`](src/test/kotlin/io/shudong/tipjar/TipJarApiIntegrationTest.kt)
+  boots the real `hyperledger/besu` image via Testcontainers with the same [`besu/`](besu/)
+  config as `docker-compose.yml`, starts the full Spring context against it, and drives the
+  REST API end-to-end: deploy → tip → history → validation error → withdraw, including the
+  `Tipped` console listener (asserted via captured log output). Takes ~1 min; skipped
+  automatically when Docker is unavailable. Note: Besu's `/readiness` endpoint needs
+  `?minPeers=0` on a single-node network.
 
 Two embedded-EVM quirks worth knowing:
 
