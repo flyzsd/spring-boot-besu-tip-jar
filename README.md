@@ -88,6 +88,40 @@ Example response:
 }
 ```
 
+## 4. Interact with the contract
+
+All interaction endpoints take the deployed contract address in the path and sign
+transactions with the configured account (dev account #1):
+
+```bash
+ADDR=0x...   # contractAddress from the deploy response
+
+# send a tip (value in wei)
+curl -X POST http://localhost:8080/api/tipjar/$ADDR/tip \
+  -H 'Content-Type: application/json' \
+  -d '{"message": "great work!", "amountWei": 1000000000000000000}'
+
+# contract state: owner, running tip total, current balance
+curl http://localhost:8080/api/tipjar/$ADDR
+
+# full tip history, read from Tipped event logs
+curl http://localhost:8080/api/tipjar/$ADDR/tips
+
+# withdraw the balance to the owner (reverts if signer is not the owner)
+curl -X POST http://localhost:8080/api/tipjar/$ADDR/withdraw
+```
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/contract/node-info` | GET | Chain id, client version, latest block |
+| `/api/contract/deploy` | POST | Deploy a new TipJar |
+| `/api/tipjar/{address}` | GET | Owner, `totalTips`, contract balance |
+| `/api/tipjar/{address}/tip` | POST | Send a tip with a message |
+| `/api/tipjar/{address}/tips` | GET | All tips (decoded `Tipped` events) |
+| `/api/tipjar/{address}/withdraw` | POST | Withdraw balance to the owner |
+
+Invalid input (e.g. `amountWei: 0`) returns `400`; on-chain reverts return `422`.
+
 ## How it works
 
 - [`Web3jConfig`](src/main/kotlin/io/shudong/tipjar/config/Web3jConfig.kt) exposes `Web3j`,
@@ -95,6 +129,13 @@ Example response:
   `StaticGasProvider` as beans.
 - [`TipJarDeploymentService`](src/main/kotlin/io/shudong/tipjar/service/TipJarDeploymentService.kt)
   calls the generated wrapper's `deploy(...)` and returns the address, tx hash, and on-chain owner.
+- [`TipJarService`](src/main/kotlin/io/shudong/tipjar/service/TipJarService.kt) loads the wrapper
+  at a given address for tips/withdrawals, and reconstructs the tip history via `eth_getLogs`
+  filtered on the `Tipped` event topic.
+- [`TippedEventLogger`](src/main/kotlin/io/shudong/tipjar/service/TippedEventLogger.kt) subscribes
+  to `Tipped` logs at startup (topic-only filter, so every TipJar instance is covered) and logs
+  each tip to the console. Over HTTP this uses web3j's filter polling, tuned to the 2s block
+  period in [`Web3jConfig`](src/main/kotlin/io/shudong/tipjar/config/Web3jConfig.kt).
 
 ## Configuration
 

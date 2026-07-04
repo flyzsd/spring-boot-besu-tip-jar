@@ -9,12 +9,15 @@ import org.web3j.tx.RawTransactionManager
 import org.web3j.tx.TransactionManager
 import org.web3j.tx.gas.ContractGasProvider
 import org.web3j.tx.gas.StaticGasProvider
+import org.web3j.utils.Async
 
 @Configuration
 class Web3jConfig(private val props: Web3Properties) {
 
     @Bean(destroyMethod = "shutdown")
-    fun web3j(): Web3j = Web3j.build(HttpService(props.rpcUrl))
+    fun web3j(): Web3j =
+        // Poll filters at the QBFT block period (2s) instead of web3j's 15s default
+        Web3j.build(HttpService(props.rpcUrl), 2_000, Async.defaultExecutorService())
 
     @Bean
     fun credentials(): Credentials = Credentials.create(props.privateKey)

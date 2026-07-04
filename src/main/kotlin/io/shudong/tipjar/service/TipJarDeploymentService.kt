@@ -6,6 +6,7 @@ import org.web3j.protocol.Web3j
 import org.web3j.tx.TransactionManager
 import org.web3j.tx.gas.ContractGasProvider
 import java.math.BigInteger
+import kotlin.jvm.optionals.getOrNull
 
 data class DeploymentResult(
     val contractAddress: String,
@@ -22,11 +23,11 @@ class TipJarDeploymentService(
 ) {
     fun deploy(): DeploymentResult {
         val contract = TipJar.deploy(web3j, transactionManager, gasProvider).send()
-        val receipt = contract.transactionReceipt
+        val receipt = contract.transactionReceipt.getOrNull()
         return DeploymentResult(
             contractAddress = contract.contractAddress,
-            transactionHash = receipt.map { it.transactionHash }.orElse(null),
-            blockNumber = receipt.map { it.blockNumber }.orElse(null),
+            transactionHash = receipt?.transactionHash,
+            blockNumber = receipt?.blockNumber,
             owner = contract.owner().send(),
         )
     }
