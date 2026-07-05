@@ -2,6 +2,13 @@
 
 Guidance for AI coding agents (Claude Code, GitHub Copilot, and others) working in this repository.
 
+## Working conventions
+
+**One approach, no dual paths.** When something can be done multiple ways, pick the single
+approach that works in every target environment and remove the alternatives. Do not keep
+parallel options around (Maven profiles, feature flags, opt-in fallbacks, "legacy" paths)
+— they drift apart and double the maintenance surface.
+
 ## What this is
 
 Spring Boot 4 + Kotlin (JDK 21) service that compiles, deploys, and interacts with the
@@ -45,6 +52,9 @@ Everything downstream (services, tests) is written against this wrapper.
 
 Deliberate choices, do not "simplify" them away:
 
+- solc runs via npm (solc-js), NOT via the `ethereum/solc` Docker image — the build must
+  work in restricted environments without Docker Hub access. Do not reintroduce a
+  Docker-based compile step, not even as an alternative.
 - `web3j-maven-plugin` is NOT used — it cannot pass `--evm-version` to solc.
 - The `solcjs` CLI is NOT used either (no `--evm-version` flag); `compile.js` calls the
   standard-JSON API, which accepts `evmVersion`. Do not rely on solc's default EVM
