@@ -67,8 +67,11 @@ Deliberate choices, do not "simplify" them away:
   target — it moves between compiler releases.
 - `maven-compiler-plugin`'s default executions are disabled and re-registered so the Kotlin
   compiler runs first and compiles the generated Java wrapper alongside Kotlin sources.
-- The extra `<repositories>` (Hyperledger JFrog, Consensys, Splunk) exist solely for
+- The extra `besu-maven` repository (Hyperledger JFrog) exists solely for
   web3j-evm's transitive Besu dependencies, which are not on Maven Central.
+  Besu's Splunk log appender and p2p discovery are excluded from web3j-evm
+  (unused by the embedded EVM), which is what keeps the Splunk and Consensys
+  repositories out of the pom — don't re-add those deps without them.
 
 ## Chain setup
 

@@ -32,14 +32,6 @@
             <id>besu-maven</id>
             <url>https://hyperledger.jfrog.io/artifactory/besu-maven</url>
         </repository>
-        <repository>
-            <id>consensys-maven</id>
-            <url>https://artifacts.consensys.net/public/maven/maven</url>
-        </repository>
-        <repository>
-            <id>splunk</id>
-            <url>https://splunk.jfrog.io/splunk/ext-releases-local</url>
-        </repository>
     </repositories>
 
     <dependencies>
@@ -80,6 +72,18 @@
             <artifactId>web3j-evm</artifactId>
             <version>${web3j.version}</version>
             <scope>test</scope>
+            <exclusions>
+                <!-- Besu's Splunk log appender and p2p peer discovery — both unused by the
+                     embedded EVM; excluding them drops the splunk and consensys repositories -->
+                <exclusion>
+                    <groupId>com.splunk.logging</groupId>
+                    <artifactId>splunk-library-javalogging</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>tech.pegasys.discovery</groupId>
+                    <artifactId>discovery</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
