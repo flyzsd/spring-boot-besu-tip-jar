@@ -23,7 +23,6 @@
         <kotlin.compiler.jvmTarget>${java.version}</kotlin.compiler.jvmTarget>
         <web3j.version>5.0.3</web3j.version>
         <!-- Must match the newest fork activated in besu/genesis.json -->
-        <solc.image>ethereum/solc:0.8.30</solc.image>
         <solc.evm-version>prague</solc.evm-version>
     </properties>
 
@@ -94,13 +93,30 @@
         <sourceDirectory>${project.basedir}/src/main/kotlin</sourceDirectory>
         <testSourceDirectory>${project.basedir}/src/test/kotlin</testSourceDirectory>
         <plugins>
-            <!-- Step 1: compile TipJar.sol with dockerized solc targeting the paris EVM -->
-            <!-- Step 2: generate the type-safe Java wrapper from the ABI/bytecode -->
+            <!-- Step 1: fetch the pinned solc-js compiler (build-tools/solc/package-lock.json) -->
+            <!-- Step 2: compile TipJar.sol targeting the ${solc.evm-version} EVM -->
+            <!-- Step 3: generate the type-safe Java wrapper from the ABI/bytecode -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.6.3</version>
                 <executions>
+                    <execution>
+                        <id>install-solc</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>npm</executable>
+                            <workingDirectory>${project.basedir}/build-tools/solc</workingDirectory>
+                            <arguments>
+                                <argument>ci</argument>
+                                <argument>--no-audit</argument>
+                                <argument>--no-fund</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
                     <execution>
                         <id>compile-solidity</id>
                         <phase>generate-sources</phase>
@@ -108,22 +124,12 @@
                             <goal>exec</goal>
                         </goals>
                         <configuration>
-                            <executable>docker</executable>
+                            <executable>node</executable>
                             <arguments>
-                                <argument>run</argument>
-                                <argument>--rm</argument>
-                                <argument>-v</argument>
-                                <argument>${project.basedir}:/work</argument>
-                                <argument>${solc.image}</argument>
-                                <argument>--evm-version</argument>
+                                <argument>${project.basedir}/build-tools/solc/compile.js</argument>
+                                <argument>${project.basedir}/contracts/TipJar.sol</argument>
                                 <argument>${solc.evm-version}</argument>
-                                <argument>--optimize</argument>
-                                <argument>--abi</argument>
-                                <argument>--bin</argument>
-                                <argument>--overwrite</argument>
-                                <argument>-o</argument>
-                                <argument>/work/target/solidity</argument>
-                                <argument>/work/contracts/TipJar.sol</argument>
+                                <argument>${project.build.directory}/solidity</argument>
                             </arguments>
                         </configuration>
                     </execution>

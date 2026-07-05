@@ -1,0 +1,8 @@
+{
+  "name": "tipjar-solc-build",
+  "private": true,
+  "description": "Compiles contracts/TipJar.sol via solc-js during the Maven build",
+  "dependencies": {
+    "solc": "0.8.30"
+  }
+}

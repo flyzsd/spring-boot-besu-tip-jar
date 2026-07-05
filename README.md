@@ -14,21 +14,25 @@ smart contract to a local [Hyperledger Besu](https://besu.hyperledger.org/) dev 
 | Maven | wrapper included (`./mvnw`) |
 | Besu | 26.6.1, single-validator QBFT via Docker Compose |
 
-## Prerequisites
+## Prerequisites  
 
 - JDK 21
-- Docker (used both for the Besu node and for the Solidity compiler during the build)
+- Node.js + npm (used for the Solidity compiler during the build)
+- Docker (used for the Besu node and the Testcontainers integration test — not for the build)
 
 ## Build pipeline
 
-The `generate-sources` phase does two things (see `pom.xml`):
+The `generate-sources` phase does three things (see `pom.xml`):
 
-1. **Compile the contract** — runs `ethereum/solc:0.8.30` in Docker against
-   [`contracts/TipJar.sol`](contracts/TipJar.sol) with **`--evm-version prague`**.
+1. **Fetch the compiler** — `npm ci` in [`build-tools/solc/`](build-tools/solc/) installs
+   [solc-js](https://github.com/argotorg/solc-js) pinned to `0.8.30` via the lockfile.
+2. **Compile the contract** — [`build-tools/solc/compile.js`](build-tools/solc/compile.js)
+   compiles [`contracts/TipJar.sol`](contracts/TipJar.sol) with **`evmVersion: prague`**
+   (passed explicitly via standard-JSON; solc's default EVM target moves between releases).
    The EVM target must not be newer than the latest fork activated in
    [`besu/genesis.json`](besu/genesis.json) (`pragueTime: 0`), otherwise deployment
    fails with `Invalid opcode` (e.g. `PUSH0` on a pre-Shanghai chain).
-2. **Generate the wrapper** — web3j codegen turns the ABI/bytecode into a type-safe
+3. **Generate the wrapper** — web3j codegen turns the ABI/bytecode into a type-safe
    `io.shudong.tipjar.contracts.TipJar` class under `target/generated-sources/web3j`.
 
 ## 1. Start the local Besu dev network
@@ -180,8 +184,8 @@ Two embedded-EVM quirks worth knowing:
 
 ## Notes
 
-- The Maven build shows a platform warning for the solc image on Apple Silicon
-  (`linux/amd64` vs `arm64`); it runs fine under emulation.
-- `web3j-maven-plugin` was deliberately **not** used: it offers no way to pass
-  `--evm-version` to solc, so the EVM target could not be kept in sync with the
-  forks activated in the chain's genesis.
+- The solc-js CLI (`solcjs`) is deliberately **not** used: it has no `--evm-version`
+  flag. [`compile.js`](build-tools/solc/compile.js) calls the compiler's standard-JSON
+  API instead, which accepts `evmVersion` — that keeps the EVM target in sync with the
+  forks activated in the chain's genesis. `web3j-maven-plugin` was rejected for the
+  same reason.
