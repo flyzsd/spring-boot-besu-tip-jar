@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [develop]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Full build: solc-js contract compile, web3j codegen, both test suites
+      # (embedded-EVM contract tests + Testcontainers Besu e2e; runner has Docker)
+      - run: ./mvnw --batch-mode clean package
