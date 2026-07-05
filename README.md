@@ -58,6 +58,21 @@ This starts a **single-validator QBFT network** on `localhost:8545` (chain id 13
 The chain state lives inside the container: `docker compose down` resets the chain,
 `docker compose stop`/`start` preserves it.
 
+### Verifying the node
+
+```bash
+docker compose ps                                  # expect "Up (healthy)"
+curl "http://localhost:8545/readiness?minPeers=0"  # expect {"status":"UP"} — single-node needs minPeers=0
+
+# chain id — expect 0x539 (= 1337)
+curl -s -X POST http://localhost:8545 -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}'
+
+# latest block — run twice; the number must advance (QBFT can serve RPC yet not mine)
+curl -s -X POST http://localhost:8545 -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'
+```
+
 The app signs as dev account #1 (`0xfe3b557e8fb62b89f4916b721be55ceb828dbd73`); its private key
 is configured in [`application.yml`](src/main/resources/application.yml) — it is a publicly
 documented dev key, never use it outside local development.
