@@ -85,46 +85,59 @@ Example response:
 
 ```json
 {
-  "contractAddress": "0xa50a51c09a5c451c52bb714527e1974b686d8e77",
+  "contractAddress": "0x42699a7612a82f1d9c36148af9c77354759b210b",
   "transactionHash": "0x22c16d76755ede9e120635be93859382a17f3bdc4ad8c9dfa626eb99c2fb81dc",
   "blockNumber": 6133,
   "owner": "0xfe3b557e8fb62b89f4916b721be55ceb828dbd73"
 }
 ```
 
+All `/api/tipjar` endpoints talk to the **single contract configured** in
+`application.yml` (`web3.contract-address`). The default value is the address the
+*first* contract deployed by dev account #1 always gets on a **fresh chain**
+(contract addresses derive from sender + nonce), so on a clean `docker compose up`
+the deploy above matches the config out of the box. If the account has sent other
+transactions, paste the returned `contractAddress` into `application.yml` and
+restart the app.
+
 ## 4. Interact with the contract
 
-All interaction endpoints take the deployed contract address in the path and sign
-transactions with the configured account (dev account #1):
+All interactions sign with the configured account (dev account #1):
 
 ```bash
-ADDR=0x...   # contractAddress from the deploy response
-
 # send a tip (value in wei)
-curl -X POST http://localhost:8080/api/tipjar/$ADDR/tip \
+curl -X POST http://localhost:8080/api/tipjar/tip \
   -H 'Content-Type: application/json' \
   -d '{"message": "great work!", "amountWei": 1000000000000000000}'
 
 # contract state: owner, running tip total, current balance
-curl http://localhost:8080/api/tipjar/$ADDR
+curl http://localhost:8080/api/tipjar
 
 # full tip history, read from Tipped event logs
-curl http://localhost:8080/api/tipjar/$ADDR/tips
+curl http://localhost:8080/api/tipjar/tips
 
 # withdraw the balance to the owner (reverts if signer is not the owner)
-curl -X POST http://localhost:8080/api/tipjar/$ADDR/withdraw
+curl -X POST http://localhost:8080/api/tipjar/withdraw
 ```
 
 | Endpoint | Method | Description |
 |---|---|---|
 | `/api/contract/node-info` | GET | Chain id, client version, latest block |
 | `/api/contract/deploy` | POST | Deploy a new TipJar |
-| `/api/tipjar/{address}` | GET | Owner, `totalTips`, contract balance |
-| `/api/tipjar/{address}/tip` | POST | Send a tip with a message |
-| `/api/tipjar/{address}/tips` | GET | All tips (decoded `Tipped` events) |
-| `/api/tipjar/{address}/withdraw` | POST | Withdraw balance to the owner |
+| `/api/tipjar` | GET | Owner, `totalTips`, contract balance |
+| `/api/tipjar/tip` | POST | Send a tip with a message |
+| `/api/tipjar/tips` | GET | All tips (decoded `Tipped` events) |
+| `/api/tipjar/withdraw` | POST | Withdraw balance to the owner |
 
-Invalid input (e.g. `amountWei: 0`) returns `400`; on-chain reverts return `422`.
+Invalid input returns `400`; on-chain reverts (e.g. withdrawing as non-owner)
+return `422` with the revert reason:
+
+```bash
+# zero tip amount — rejected with 400 before reaching the chain
+curl -X POST http://localhost:8080/api/tipjar/tip \
+  -H 'Content-Type: application/json' \
+  -d '{"message": "should fail", "amountWei": 0}'
+```
 
 ## How it works
 
@@ -149,6 +162,7 @@ All settings live under the `web3` prefix in `application.yml`:
 |---|---|---|
 | `web3.rpc-url` | `http://localhost:8545` | Besu JSON-RPC endpoint |
 | `web3.private-key` | Besu dev account #1 | Signing key |
+| `web3.contract-address` | first-deploy address on a fresh chain | The TipJar all `/api/tipjar` endpoints use |
 | `web3.gas-price` | `0` | Dev network runs with `--min-gas-price=0` |
 | `web3.gas-limit` | `4000000` | Per-transaction gas limit |
 
@@ -158,8 +172,12 @@ All settings live under the `web3` prefix in `application.yml`:
 ./mvnw test
 ```
 
-Two complementary suites:
+Three complementary suites:
 
+- **Web slice tests** — [`TipJarControllerTest`](src/test/kotlin/io/shudong/tipjar/TipJarControllerTest.kt)
+  covers JSON shapes and error mapping (400/422) with `TipJarService` mocked via
+  [springmockk](https://github.com/Ninja-Squad/springmockk) (`@MockkBean`) — the project's
+  mocking flavor of choice, Kotlin-friendly unlike Mockito.
 - **Contract tests** — [`TipJarContractTest`](src/test/kotlin/io/shudong/tipjar/TipJarContractTest.kt)
   covers the contract logic (ownership, tipping, event emission, reverts, withdrawal) on
   [web3j-evm](https://github.com/hyperledger-labs/web3j-evm)'s in-process EVM — runs in ~1s

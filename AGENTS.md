@@ -9,6 +9,11 @@ approach that works in every target environment and remove the alternatives. Do 
 parallel options around (Maven profiles, feature flags, opt-in fallbacks, "legacy" paths)
 — they drift apart and double the maintenance surface.
 
+**Mocking: springmockk only.** When a test needs mocks, use MockK via springmockk
+(`@MockkBean`), never Mockito/`@MockitoBean` — it's the Kotlin-friendly flavor (no
+final-class friction, `every { }` DSL). Mocks are for the web slice only; contract and
+chain behavior must stay on the real EVM/node (that's what catches the genesis invariant).
+
 ## What this is
 
 Spring Boot 4 + Kotlin (JDK 21) service that compiles, deploys, and interacts with the
@@ -22,8 +27,9 @@ run the node and the Testcontainers e2e test.
 docker compose up -d          # start the Besu node (required by spring-boot:run, NOT by tests)
 ./mvnw clean package          # build: npm ci + solc-js → web3j codegen → kotlin compile → tests
 ./mvnw spring-boot:run        # run the app (Besu must already be up; it reads chain id at startup)
-./mvnw test                   # both test suites
+./mvnw test                   # all test suites
 ./mvnw test -Dtest=TipJarContractTest        # fast contract tests only (~1s, no Docker)
+./mvnw test -Dtest=TipJarControllerTest      # web slice, springmockk (~1s, no Docker)
 ./mvnw test -Dtest=TipJarApiIntegrationTest  # Testcontainers e2e (~1 min, needs Docker)
 ```
 
@@ -78,8 +84,11 @@ are publicly documented dev keys — fine to commit, never reuse elsewhere.
   block period; web3j's default 15s makes event listening laggy) and a chain-id-aware
   `RawTransactionManager` (reads chain id from the node at startup — hence the node-up
   requirement).
-- `TipJarService` loads the wrapper at a caller-supplied address per request; tip history
-  is reconstructed via `eth_getLogs` filtered on the `Tipped` event topic (no local state).
+- `TipJarService` talks to the single contract configured via `web3.contract-address`
+  (the yml default is the deterministic first-deploy address on a fresh chain —
+  sender + nonce 0); tip history is reconstructed via `eth_getLogs` filtered on the
+  `Tipped` event topic (no local state). `POST /api/contract/deploy` only provisions
+  a contract; switching to it requires a config change + restart.
 - `TippedEventLogger` subscribes at startup to a **topic-only** filter (no address), so it
   logs tips to every TipJar instance, including ones deployed later. It watches from
   LATEST — historical tips are `/tips`' job.
@@ -104,4 +113,8 @@ Testcontainers (`TipJarApiIntegrationTest`):
   auto-skips when Docker is unavailable.
 
 Spring Boot 4 specifics: `TestRestTemplate` no longer exists (use `RestClient`);
-the Boot parent does not manage Testcontainers versions (pinned in pom).
+the Boot parent does not manage Testcontainers versions (pinned in pom);
+test slices moved to per-module artifacts — `@WebMvcTest` needs the
+`spring-boot-starter-webmvc-test` dependency and lives in
+`org.springframework.boot.webmvc.test.autoconfigure`. springmockk must be 5.x
+(4.x targets Boot 3 and does not work on Framework 7).

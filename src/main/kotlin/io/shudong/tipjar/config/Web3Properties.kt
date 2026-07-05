@@ -7,6 +7,7 @@ import java.math.BigInteger
 data class Web3Properties(
     val rpcUrl: String,
     val privateKey: String,
+    val contractAddress: String,
     val gasPrice: BigInteger = BigInteger.ZERO,
     val gasLimit: BigInteger = BigInteger.valueOf(4_000_000),
 )
