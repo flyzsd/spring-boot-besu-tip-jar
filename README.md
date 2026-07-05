@@ -189,3 +189,7 @@ Two embedded-EVM quirks worth knowing:
   API instead, which accepts `evmVersion` — that keeps the EVM target in sync with the
   forks activated in the chain's genesis. `web3j-maven-plugin` was rejected for the
   same reason.
+
+## License
+
+[MIT](LICENSE)
