@@ -53,7 +53,7 @@ class TipJarController(private val tipJarService: TipJarService) {
 
     // Reverts (e.g. NotOwner, EmptyTip) surface as TransactionException from web3j
     @ExceptionHandler(TransactionException::class)
-    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_CONTENT)
     fun reverted(e: TransactionException): ApiError {
         log.error(
             "Transaction reverted on-chain (tx={}): {}",
