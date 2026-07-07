@@ -1,6 +1,6 @@
 # spring-boot-besu-tip-jar
 
-Spring Boot 4 + Kotlin service that compiles and deploys the [`TipJar`](contracts/TipJar.sol)
+Spring Boot 4 + Kotlin service that compiles and deploys the [`TipJar`](hardhat/contracts/TipJar.sol)
 smart contract to a local [Hyperledger Besu](https://besu.hyperledger.org/) dev network using
 [web3j](https://docs.web3j.io/).
 
@@ -11,29 +11,33 @@ smart contract to a local [Hyperledger Besu](https://besu.hyperledger.org/) dev 
 | Spring Boot | 4.1.0 |
 | Kotlin | 2.4.0 (Java 21) |
 | web3j | 5.0.3 |
+| Hardhat | 2.x (contract compile + tests) |
 | Maven | wrapper included (`./mvnw`) |
 | Besu | 26.6.1, single-validator QBFT via Docker Compose |
 
 ## Prerequisites  
 
 - JDK 21
-- Node.js + npm (used for the Solidity compiler during the build)
+- Node.js + npm (Hardhat compiles and tests the contracts during the build)
 - Docker (used for the Besu node and the Testcontainers integration test — not for the build)
 
 ## Build pipeline
 
-The `generate-sources` phase does three things (see `pom.xml`):
+Contracts are owned by the [Hardhat](https://hardhat.org) workspace in [`hardhat/`](hardhat/);
+the Maven build drives it (see `pom.xml`). The `generate-sources` phase:
 
-1. **Fetch the compiler** — `npm ci` in [`build-tools/solc/`](build-tools/solc/) installs
-   [solc-js](https://github.com/argotorg/solc-js) pinned to `0.8.30` via the lockfile.
-2. **Compile the contract** — [`build-tools/solc/compile.js`](build-tools/solc/compile.js)
-   compiles [`contracts/TipJar.sol`](contracts/TipJar.sol) with **`evmVersion: prague`**
-   (passed explicitly via standard-JSON; solc's default EVM target moves between releases).
-   The EVM target must not be newer than the latest fork activated in
+1. **`npm ci`** — installs Hardhat, pinned by `package-lock.json` (solc 0.8.30 is
+   fetched by Hardhat per [`hardhat.config.js`](hardhat/hardhat.config.js)).
+2. **`npx hardhat compile`** — compiles [`contracts/TipJar.sol`](hardhat/contracts/TipJar.sol)
+   with **`evmVersion: prague`** pinned in the config (solc's default EVM target moves
+   between releases). The EVM target must not be newer than the latest fork activated in
    [`besu/genesis.json`](besu/genesis.json) (`pragueTime: 0`), otherwise deployment
    fails with `Invalid opcode` (e.g. `PUSH0` on a pre-Shanghai chain).
-3. **Generate the wrapper** — web3j codegen turns the ABI/bytecode into a type-safe
-   `io.shudong.tipjar.contracts.TipJar` class under `target/generated-sources/web3j`.
+3. **Export + codegen** — [`scripts/export-web3j-artifacts.js`](hardhat/scripts/export-web3j-artifacts.js)
+   flattens the Hardhat artifacts to `.abi`/`.bin`, and web3j codegen turns them into a
+   type-safe `io.shudong.tipjar.contracts.TipJar` class under `target/generated-sources/web3j`.
+
+The Hardhat contract tests run in the Maven `test` phase alongside the JVM suites.
 
 ## 1. Start the local Besu dev network
 
@@ -88,23 +92,21 @@ node's chain id, so the Besu node must be running first.
 
 ## 3. Deploy the contract
 
+Deployment is owned by the Hardhat workspace (the app only *talks to* a deployed contract):
+
 ```bash
 # sanity-check connectivity
 curl http://localhost:8080/api/contract/node-info
 
 # deploy TipJar
-curl -X POST http://localhost:8080/api/contract/deploy
+cd hardhat && npx hardhat run scripts/deploy.js --network besu
 ```
 
-Example response:
+Example output:
 
-```json
-{
-  "contractAddress": "0x42699a7612a82f1d9c36148af9c77354759b210b",
-  "transactionHash": "0x22c16d76755ede9e120635be93859382a17f3bdc4ad8c9dfa626eb99c2fb81dc",
-  "blockNumber": 6133,
-  "owner": "0xfe3b557e8fb62b89f4916b721be55ceb828dbd73"
-}
+```
+TipJar deployed at 0x42699A7612A82f1d9C36148af9C77354759b210b (owner: 0xFE3B557E8Fb62b89F4916B721be55cEb828dBd73)
+If this differs from web3.contract-address, update application.yml and restart the app.
 ```
 
 All `/api/tipjar` endpoints talk to the **single contract configured** in
@@ -112,8 +114,7 @@ All `/api/tipjar` endpoints talk to the **single contract configured** in
 *first* contract deployed by dev account #1 always gets on a **fresh chain**
 (contract addresses derive from sender + nonce), so on a clean `docker compose up`
 the deploy above matches the config out of the box. If the account has sent other
-transactions, paste the returned `contractAddress` into `application.yml` and
-restart the app.
+transactions, paste the printed address into `application.yml` and restart the app.
 
 ## 4. Interact with the contract
 
@@ -138,7 +139,6 @@ curl -X POST http://localhost:8080/api/tipjar/withdraw
 | Endpoint | Method | Description |
 |---|---|---|
 | `/api/contract/node-info` | GET | Chain id, client version, latest block |
-| `/api/contract/deploy` | POST | Deploy a new TipJar |
 | `/api/tipjar` | GET | Owner, `totalTips`, contract balance |
 | `/api/tipjar/tip` | POST | Send a tip with a message |
 | `/api/tipjar/tips` | GET | All tips (decoded `Tipped` events) |
@@ -159,8 +159,6 @@ curl -X POST http://localhost:8080/api/tipjar/tip \
 - [`Web3jConfig`](src/main/kotlin/io/shudong/tipjar/config/Web3jConfig.kt) exposes `Web3j`,
   `Credentials`, a chain-id-aware `RawTransactionManager`, and a zero-gas-price
   `StaticGasProvider` as beans.
-- [`TipJarDeploymentService`](src/main/kotlin/io/shudong/tipjar/service/TipJarDeploymentService.kt)
-  calls the generated wrapper's `deploy(...)` and returns the address, tx hash, and on-chain owner.
 - [`TipJarService`](src/main/kotlin/io/shudong/tipjar/service/TipJarService.kt) loads the wrapper
   at a given address for tips/withdrawals, and reconstructs the tip history via `eth_getLogs`
   filtered on the `Tipped` event topic.
@@ -193,10 +191,10 @@ Three complementary suites:
   covers JSON shapes and error mapping (400/422) with `TipJarService` mocked via
   [springmockk](https://github.com/Ninja-Squad/springmockk) (`@MockkBean`) — the project's
   mocking flavor of choice, Kotlin-friendly unlike Mockito.
-- **Contract tests** — [`TipJarContractTest`](src/test/kotlin/io/shudong/tipjar/TipJarContractTest.kt)
-  covers the contract logic (ownership, tipping, event emission, reverts, withdrawal) on
-  [web3j-evm](https://github.com/hyperledger-labs/web3j-evm)'s in-process EVM — runs in ~1s
-  with no node or Docker, against the same prague bytecode the build deploys.
+- **Contract tests** — [`hardhat/test/TipJar.test.js`](hardhat/test/TipJar.test.js) covers the contract
+  logic (ownership, tipping, event emission, custom-error reverts, withdrawal) on the
+  in-process Hardhat Network (`hardfork: prague`) — runs in ~1s with no node or Docker,
+  against the same prague bytecode the build deploys. Run standalone with `npx hardhat test` from `hardhat/`.
 - **Integration tests** — [`TipJarApiIntegrationTest`](src/test/kotlin/io/shudong/tipjar/TipJarApiIntegrationTest.kt)
   boots the real `hyperledger/besu` image via Testcontainers with the same [`besu/`](besu/)
   config as `docker-compose.yml`, starts the full Spring context against it, and drives the
@@ -205,23 +203,13 @@ Three complementary suites:
   automatically when Docker is unavailable. Note: Besu's `/readiness` endpoint needs
   `?minPeers=0` on a single-node network.
 
-Two embedded-EVM quirks worth knowing:
-
-- web3j-evm's Besu internals are not on Maven Central, hence the extra `<repositories>`
-  in `pom.xml`.
-- The embedded chain picks the EVM fork from the *current head timestamp*, and treats a
-  fork time of `0` as unset. [`embedded-genesis.json`](src/test/resources/embedded-genesis.json)
-  therefore sets `pragueTime: 1` **and** genesis `timestamp: 0x1` — with the web3j-evm
-  default (pre-Shanghai DEV genesis), deploying the prague bytecode fails with an
-  all-gas-consumed `PUSH0` invalid-opcode error.
-
 ## Notes
 
-- The solc-js CLI (`solcjs`) is deliberately **not** used: it has no `--evm-version`
-  flag. [`compile.js`](build-tools/solc/compile.js) calls the compiler's standard-JSON
-  API instead, which accepts `evmVersion` — that keeps the EVM target in sync with the
-  forks activated in the chain's genesis. `web3j-maven-plugin` was rejected for the
-  same reason.
+- The EVM target is pinned explicitly in `hardhat.config.js` (`evmVersion: "prague"`)
+  because solc's default moves between releases; `web3j-maven-plugin` was rejected
+  for the same reason (no way to pass `--evm-version`).
+- Hardhat is deliberately on the 2.x line: the diamond-pattern plugin ecosystem and
+  most references still target it over Hardhat 3.
 
 ## License
 

@@ -29,7 +29,6 @@ import java.math.BigInteger
 import java.nio.file.Paths
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 private const val DEV_ACCOUNT_1 = "0xfe3b557e8fb62b89f4916b721be55ceb828dbd73"
@@ -70,19 +69,6 @@ class TipJarApiIntegrationTest {
 
     @Test
     @Order(3)
-    fun `deploy provisions a fresh contract without switching the app to it`() {
-        val result = post("/api/contract/deploy")
-        val newAddress = result["contractAddress"] as String
-        assertTrue(newAddress.startsWith("0x"))
-        assertEquals(DEV_ACCOUNT_1, result["owner"])
-        assertNotEquals(deployedContract, newAddress)
-
-        // the app keeps talking to the configured contract
-        assertEquals(deployedContract, get("/api/tipjar")["contractAddress"])
-    }
-
-    @Test
-    @Order(4)
     fun `tip is mined, reflected in state, and logged by the listener`(output: CapturedOutput) {
         val tip = post(
             "/api/tipjar/tip",
@@ -100,7 +86,7 @@ class TipJarApiIntegrationTest {
     }
 
     @Test
-    @Order(5)
+    @Order(4)
     fun `tips lists the full history from event logs`() {
         val tips = client.get().uri("/api/tipjar/tips")
             .retrieve().body(List::class.java)!!
@@ -110,7 +96,7 @@ class TipJarApiIntegrationTest {
     }
 
     @Test
-    @Order(6)
+    @Order(5)
     fun `zero tip is rejected with 400 before reaching the chain`() {
         val e = assertFailsWith<HttpClientErrorException> {
             post("/api/tipjar/tip", mapOf("message" to "free", "amountWei" to 0))
@@ -119,7 +105,7 @@ class TipJarApiIntegrationTest {
     }
 
     @Test
-    @Order(7)
+    @Order(6)
     fun `withdraw sweeps the balance to the owner`() {
         val result = post("/api/tipjar/withdraw")
         assertEquals(1000, (result["withdrawnWei"] as Number).toInt())
