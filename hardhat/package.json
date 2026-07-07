@@ -1,0 +1,16 @@
+{
+  "name": "spring-boot-besu-tip-jar-contracts",
+  "private": true,
+  "description": "Hardhat workspace: compiles and tests the Solidity contracts; the Spring Boot app consumes the artifacts via web3j codegen",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
+    "@nomicfoundation/hardhat-ethers": "^3.1.0",
+    "chai": "^4.5.0",
+    "ethers": "^6.15.0",
+    "hardhat": "^2.26.0"
+  }
+}

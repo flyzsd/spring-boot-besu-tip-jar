@@ -22,17 +22,8 @@
         <kotlin.version>2.4.0</kotlin.version>
         <kotlin.compiler.jvmTarget>${java.version}</kotlin.compiler.jvmTarget>
         <web3j.version>5.0.3</web3j.version>
-        <!-- Must match the newest fork activated in besu/genesis.json -->
-        <solc.evm-version>prague</solc.evm-version>
+        <skipTests>false</skipTests>
     </properties>
-
-    <repositories>
-        <!-- Besu EVM artifacts (pulled in by web3j-evm) are not on Maven Central -->
-        <repository>
-            <id>besu-maven</id>
-            <url>https://hyperledger.jfrog.io/artifactory/besu-maven</url>
-        </repository>
-    </repositories>
 
     <dependencies>
         <dependency>
@@ -68,24 +59,6 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.web3j</groupId>
-            <artifactId>web3j-evm</artifactId>
-            <version>${web3j.version}</version>
-            <scope>test</scope>
-            <exclusions>
-                <!-- Besu's Splunk log appender and p2p peer discovery — both unused by the
-                     embedded EVM; excluding them drops the splunk and consensys repositories -->
-                <exclusion>
-                    <groupId>com.splunk.logging</groupId>
-                    <artifactId>splunk-library-javalogging</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>tech.pegasys.discovery</groupId>
-                    <artifactId>discovery</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc-test</artifactId>
             <scope>test</scope>
@@ -108,23 +81,23 @@
         <sourceDirectory>${project.basedir}/src/main/kotlin</sourceDirectory>
         <testSourceDirectory>${project.basedir}/src/test/kotlin</testSourceDirectory>
         <plugins>
-            <!-- Step 1: fetch the pinned solc-js compiler (build-tools/solc/package-lock.json) -->
-            <!-- Step 2: compile TipJar.sol targeting the ${solc.evm-version} EVM -->
-            <!-- Step 3: generate the type-safe Java wrapper from the ABI/bytecode -->
+            <!-- Contract pipeline: npm ci → hardhat compile (evmVersion pinned in
+                 hardhat.config.js) → export ABI/bin → web3j codegen. Hardhat contract
+                 tests run in the test phase alongside the JVM suites. -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.6.3</version>
                 <executions>
                     <execution>
-                        <id>install-solc</id>
+                        <id>install-node-deps</id>
                         <phase>generate-sources</phase>
                         <goals>
                             <goal>exec</goal>
                         </goals>
                         <configuration>
                             <executable>npm</executable>
-                            <workingDirectory>${project.basedir}/build-tools/solc</workingDirectory>
+                            <workingDirectory>${project.basedir}/hardhat</workingDirectory>
                             <arguments>
                                 <argument>ci</argument>
                                 <argument>--no-audit</argument>
@@ -139,12 +112,44 @@
                             <goal>exec</goal>
                         </goals>
                         <configuration>
-                            <executable>node</executable>
+                            <executable>npx</executable>
+                            <workingDirectory>${project.basedir}/hardhat</workingDirectory>
                             <arguments>
-                                <argument>${project.basedir}/build-tools/solc/compile.js</argument>
-                                <argument>${project.basedir}/contracts/TipJar.sol</argument>
-                                <argument>${solc.evm-version}</argument>
+                                <argument>--no-install</argument>
+                                <argument>hardhat</argument>
+                                <argument>compile</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>export-web3j-artifacts</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>node</executable>
+                            <workingDirectory>${project.basedir}/hardhat</workingDirectory>
+                            <arguments>
+                                <argument>${project.basedir}/hardhat/scripts/export-web3j-artifacts.js</argument>
                                 <argument>${project.build.directory}/solidity</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>hardhat-test</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${skipTests}</skip>
+                            <executable>npx</executable>
+                            <workingDirectory>${project.basedir}/hardhat</workingDirectory>
+                            <arguments>
+                                <argument>--no-install</argument>
+                                <argument>hardhat</argument>
+                                <argument>test</argument>
                             </arguments>
                         </configuration>
                     </execution>

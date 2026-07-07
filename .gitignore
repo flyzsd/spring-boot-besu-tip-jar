@@ -1,5 +1,7 @@
 target/
 node_modules/
+artifacts/
+cache/
 .DS_Store
 .claude/settings.local.json
 *.iml
