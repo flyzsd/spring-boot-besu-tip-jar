@@ -75,6 +75,16 @@ Deliberate choices, do not "simplify" them away:
 - `maven-compiler-plugin`'s default executions are disabled and re-registered so the Kotlin
   compiler runs first and compiles the generated Java wrapper alongside Kotlin sources.
 
+## Supply chain
+
+- Dependabot watches maven, npm (`/hardhat`), and github-actions weekly; it is configured
+  to never propose the Hardhat 3 major (deliberate 2.x pin).
+- `vertx-core` is excluded from web3j core — it's tuweni-bytes' optional Buffer interop,
+  unused here and a recurring CVE-scanner target. Don't re-add it.
+- `npm audit` highs (serialize-javascript, tmp, undici) are all inside Hardhat 2's
+  dev-time toolchain: not shipped, not running in production. Accepted until a future
+  Hardhat 3 migration; do not run `npm audit fix --force` (it installs Hardhat 3).
+
 ## Diamond rules (EIP-2535, hand-rolled minimal)
 
 - **Storage discipline:** facets must NEVER declare declaration-order state variables —

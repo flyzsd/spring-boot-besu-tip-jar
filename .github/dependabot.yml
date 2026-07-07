@@ -1,0 +1,23 @@
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: /hardhat
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    ignore:
+      # Hardhat 2.x is deliberate (diamond plugin ecosystem, see AGENTS.md);
+      # do not propose the Hardhat 3 major
+      - dependency-name: hardhat
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

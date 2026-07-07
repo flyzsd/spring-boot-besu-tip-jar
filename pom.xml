@@ -46,6 +46,14 @@
             <groupId>org.web3j</groupId>
             <artifactId>core</artifactId>
             <version>${web3j.version}</version>
+            <exclusions>
+                <!-- tuweni-bytes' optional vert.x Buffer interop — unused here and a
+                     recurring CVE-scanner target -->
+                <exclusion>
+                    <groupId>io.vertx</groupId>
+                    <artifactId>vertx-core</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
