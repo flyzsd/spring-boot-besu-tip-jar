@@ -1,7 +1,8 @@
 package io.shudong.tipjar.service
 
 import io.shudong.tipjar.config.Web3Properties
-import io.shudong.tipjar.contracts.TipJar
+import io.shudong.tipjar.contracts.OwnershipFacet
+import io.shudong.tipjar.contracts.TipJarFacet
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.web3j.abi.EventEncoder
@@ -53,27 +54,29 @@ class TipJarService(
     private val log = LoggerFactory.getLogger(javaClass)
     private val address = props.contractAddress
 
-    private fun contract(): TipJar =
-        TipJar.load(address, web3j, transactionManager, gasProvider)
+    // Facet wrappers loaded at the diamond's address — the diamond's fallback
+    // routes each selector to the right facet
+    private fun contract(): TipJarFacet =
+        TipJarFacet.load(address, web3j, transactionManager, gasProvider)
+
+    private fun ownership(): OwnershipFacet =
+        OwnershipFacet.load(address, web3j, transactionManager, gasProvider)
 
     private fun balance(): BigInteger =
         web3j.ethGetBalance(address, DefaultBlockParameterName.LATEST).send().balance
 
-    fun info(): TipJarInfo {
-        val contract = contract()
-        return TipJarInfo(
-            contractAddress = address,
-            owner = contract.owner().send(),
-            totalTipsWei = contract.totalTips().send(),
-            balanceWei = balance(),
-        )
-    }
+    fun info(): TipJarInfo = TipJarInfo(
+        contractAddress = address,
+        owner = ownership().owner().send(),
+        totalTipsWei = contract().totalTips().send(),
+        balanceWei = balance(),
+    )
 
     fun tip(message: String, amountWei: BigInteger): TipResult {
         require(amountWei > BigInteger.ZERO) { "amountWei must be positive" }
         log.debug("Sending tip of {} wei to {}", amountWei, address)
         val receipt = contract().tip(message, amountWei).send()
-        val event = TipJar.getTippedEvents(receipt).single()
+        val event = TipJarFacet.getTippedEvents(receipt).single()
         log.info(
             "Tip of {} wei mined: contract={}, tx={}, block={}, gasUsed={}",
             amountWei, address, receipt.transactionHash, receipt.blockNumber, receipt.gasUsed,
@@ -92,10 +95,10 @@ class TipJarService(
             DefaultBlockParameterName.EARLIEST,
             DefaultBlockParameterName.LATEST,
             address,
-        ).addSingleTopic(EventEncoder.encode(TipJar.TIPPED_EVENT))
+        ).addSingleTopic(EventEncoder.encode(TipJarFacet.TIPPED_EVENT))
         return web3j.ethGetLogs(filter).send().logs.map {
             val log = (it as EthLog.LogObject).get()
-            val event = TipJar.getTippedEventFromLog(log)
+            val event = TipJarFacet.getTippedEventFromLog(log)
             TipEntry(
                 from = event.from,
                 amountWei = event.amount,
@@ -107,11 +110,10 @@ class TipJarService(
     }
 
     fun withdraw(): WithdrawResult {
-        val contract = contract()
-        val recipient = contract.owner().send()
+        val recipient = ownership().owner().send()
         val balanceBefore = balance()
         log.debug("Withdrawing {} wei from {} to {}", balanceBefore, address, recipient)
-        val receipt = contract.withdraw().send()
+        val receipt = contract().withdraw().send()
         log.info(
             "Withdrawal of {} wei mined: contract={}, recipient={}, tx={}, block={}",
             balanceBefore, address, recipient, receipt.transactionHash, receipt.blockNumber,

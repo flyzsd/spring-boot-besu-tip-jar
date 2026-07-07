@@ -1,11 +1,15 @@
-// Deploys TipJar to the target network (npx hardhat run scripts/deploy.js --network besu).
-const hre = require("hardhat");
+// Deploys the TipJar diamond (npx hardhat run scripts/deploy.js --network besu).
+const { ethers } = require("hardhat");
+const { deployDiamond } = require("../lib/diamond");
 
 async function main() {
-  const tipJar = await hre.ethers.deployContract("TipJar");
-  await tipJar.waitForDeployment();
-  const address = await tipJar.getAddress();
-  console.log(`TipJar deployed at ${address} (owner: ${await tipJar.owner()})`);
+  const { diamond, facets } = await deployDiamond();
+  const diamondAddress = await diamond.getAddress();
+  for (const [name, facet] of Object.entries(facets)) {
+    console.log(`${name} deployed at ${await facet.getAddress()}`);
+  }
+  const ownership = await ethers.getContractAt("OwnershipFacet", diamondAddress);
+  console.log(`TipJar diamond deployed at ${diamondAddress} (owner: ${await ownership.owner()})`);
   console.log("If this differs from web3.contract-address, update application.yml and restart the app.");
 }
 

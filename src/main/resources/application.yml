@@ -7,10 +7,10 @@ web3:
   # Besu dev-mode pre-funded account 0xfe3b557e8fb62b89f4916b721be55ceb828dbd73
   # (publicly known key, local dev only)
   private-key: "0x8f2a55949038a9610f50fb23b5883af3b4ecb3c3bb792cbcefbd1542c692be63"
-  # The TipJar all /api/tipjar endpoints talk to. This default is the address the
-  # FIRST contract deployed by the account above always gets on a fresh chain
-  # (derived from sender + nonce 0). After other transactions, POST /api/contract/deploy
-  # and paste the returned address here, then restart.
-  contract-address: "0x42699a7612a82f1d9c36148af9c77354759b210b"
+  # The TipJar diamond all /api/tipjar endpoints talk to. This default is the address
+  # the diamond always gets on a fresh chain: the deploy script's 5th transaction
+  # (4 facets first), i.e. sender + nonce 4. After other transactions, run the deploy
+  # script and paste the printed address here, then restart.
+  contract-address: "0x2e1f232a9439c3d459fceca0beef13acc8259dd8"
   gas-price: 0
   gas-limit: 4000000

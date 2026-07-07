@@ -1,7 +1,7 @@
 package io.shudong.tipjar.service
 
 import io.reactivex.disposables.Disposable
-import io.shudong.tipjar.contracts.TipJar
+import io.shudong.tipjar.contracts.TipJarFacet
 import jakarta.annotation.PostConstruct
 import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
@@ -28,10 +28,10 @@ class TippedEventLogger(private val web3j: Web3j) {
             DefaultBlockParameterName.LATEST,
             DefaultBlockParameterName.LATEST,
             emptyList(),
-        ).addSingleTopic(EventEncoder.encode(TipJar.TIPPED_EVENT))
+        ).addSingleTopic(EventEncoder.encode(TipJarFacet.TIPPED_EVENT))
         subscription = web3j.ethLogFlowable(filter).subscribe(
             { eventLog ->
-                val event = TipJar.getTippedEventFromLog(eventLog)
+                val event = TipJarFacet.getTippedEventFromLog(eventLog)
                 log.info(
                     "Tipped {} wei from {} — \"{}\" (contract={}, block={}, tx={})",
                     event.amount,

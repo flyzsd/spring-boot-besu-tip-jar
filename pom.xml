@@ -154,7 +154,7 @@
                         </configuration>
                     </execution>
                     <execution>
-                        <id>generate-contract-wrapper</id>
+                        <id>generate-wrapper-ownership-facet</id>
                         <phase>generate-sources</phase>
                         <goals>
                             <goal>java</goal>
@@ -164,9 +164,30 @@
                             <includePluginDependencies>true</includePluginDependencies>
                             <arguments>
                                 <argument>-a</argument>
-                                <argument>${project.build.directory}/solidity/TipJar.abi</argument>
+                                <argument>${project.build.directory}/solidity/OwnershipFacet.abi</argument>
                                 <argument>-b</argument>
-                                <argument>${project.build.directory}/solidity/TipJar.bin</argument>
+                                <argument>${project.build.directory}/solidity/OwnershipFacet.bin</argument>
+                                <argument>-o</argument>
+                                <argument>${project.build.directory}/generated-sources/web3j</argument>
+                                <argument>-p</argument>
+                                <argument>io.shudong.tipjar.contracts</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>generate-wrapper-tipjar-facet</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>org.web3j.codegen.SolidityFunctionWrapperGenerator</mainClass>
+                            <includePluginDependencies>true</includePluginDependencies>
+                            <arguments>
+                                <argument>-a</argument>
+                                <argument>${project.build.directory}/solidity/TipJarFacet.abi</argument>
+                                <argument>-b</argument>
+                                <argument>${project.build.directory}/solidity/TipJarFacet.bin</argument>
                                 <argument>-o</argument>
                                 <argument>${project.build.directory}/generated-sources/web3j</argument>
                                 <argument>-p</argument>

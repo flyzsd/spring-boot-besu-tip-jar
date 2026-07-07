@@ -15,7 +15,8 @@ module.exports = {
     // Same fork as the compile target so the tests catch EVM-version mismatches
     hardhat: { hardfork: "prague" },
     besu: {
-      url: "http://localhost:8545",
+      // BESU_RPC_URL lets the Testcontainers e2e test point this at its mapped port
+      url: process.env.BESU_RPC_URL || "http://localhost:8545",
       chainId: 1337,
       // Besu dev account #1 (publicly documented key, local dev only)
       accounts: ["0x8f2a55949038a9610f50fb23b5883af3b4ecb3c3bb792cbcefbd1542c692be63"],

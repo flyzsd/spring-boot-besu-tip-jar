@@ -1,6 +1,5 @@
 package io.shudong.tipjar
 
-import io.shudong.tipjar.contracts.TipJar
 import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
@@ -20,24 +19,20 @@ import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import org.testcontainers.utility.MountableFile
-import org.web3j.crypto.Credentials
-import org.web3j.protocol.Web3j
-import org.web3j.protocol.http.HttpService
-import org.web3j.tx.RawTransactionManager
-import org.web3j.tx.gas.StaticGasProvider
-import java.math.BigInteger
+import java.io.File
 import java.nio.file.Paths
+import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 private const val DEV_ACCOUNT_1 = "0xfe3b557e8fb62b89f4916b721be55ceb828dbd73"
-private const val DEV_ACCOUNT_1_KEY = "0x8f2a55949038a9610f50fb23b5883af3b4ecb3c3bb792cbcefbd1542c692be63"
 
 /**
  * End-to-end scenario against a real Besu QBFT node (same image and config
- * as docker-compose.yml) through the REST API. The contract under test is
- * deployed via web3j before the Spring context boots, because the app reads
+ * as docker-compose.yml) through the REST API. The diamond under test is
+ * deployed with the production procedure — the Hardhat deploy script —
+ * before the Spring context boots, because the app reads
  * web3.contract-address at startup.
  */
 @Testcontainers(disabledWithoutDocker = true)
@@ -153,13 +148,22 @@ class TipJarApiIntegrationTest {
             // /readiness expects >= 1 peer by default, which a single-node network never has
             .waitingFor(Wait.forHttp("/readiness?minPeers=0").forPort(8545))
 
-        // Deployed directly via web3j once the container is up (lazily, from the
-        // property supplier below) so the address is known before the context boots.
+        // Deployed with the production procedure (hardhat deploy script) once the
+        // container is up — lazily, from the property supplier below, so the address
+        // is known before the context boots. npm ci has already run: the Maven build
+        // executes it in generate-sources.
         private val deployedContract: String by lazy {
-            val web3j = Web3j.build(HttpService("http://${besu.host}:${besu.getMappedPort(8545)}"))
-            val txManager = RawTransactionManager(web3j, Credentials.create(DEV_ACCOUNT_1_KEY), 1337)
-            val gasProvider = StaticGasProvider(BigInteger.ZERO, BigInteger.valueOf(4_000_000))
-            TipJar.deploy(web3j, txManager, gasProvider).send().contractAddress
+            val npx = if (System.getProperty("os.name").lowercase().contains("win")) "npx.cmd" else "npx"
+            val process = ProcessBuilder(npx, "hardhat", "run", "scripts/deploy.js", "--network", "besu")
+                .directory(File("hardhat"))
+                .redirectErrorStream(true)
+                .apply { environment()["BESU_RPC_URL"] = "http://${besu.host}:${besu.getMappedPort(8545)}" }
+                .start()
+            val output = process.inputStream.bufferedReader().readText()
+            check(process.waitFor(180, TimeUnit.SECONDS)) { "hardhat deploy timed out:\n$output" }
+            check(process.exitValue() == 0) { "hardhat deploy failed:\n$output" }
+            Regex("TipJar diamond deployed at (0x[0-9a-fA-F]{40})").find(output)?.groupValues?.get(1)
+                ?: error("diamond address not found in deploy output:\n$output")
         }
 
         @DynamicPropertySource

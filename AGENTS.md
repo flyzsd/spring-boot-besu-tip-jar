@@ -16,11 +16,12 @@ chain behavior must stay on the real EVM/node (that's what catches the genesis i
 
 ## What this is
 
-Spring Boot 4 + Kotlin (JDK 21) service that deploys and interacts with the `TipJar`
-Solidity contract on a local single-validator Besu QBFT network, via web3j 5.
+Spring Boot 4 + Kotlin (JDK 21) service that interacts with a **TipJar diamond**
+(hand-rolled minimal EIP-2535: `Diamond` dispatcher + `DiamondCut`/`DiamondLoupe`/
+`Ownership`/`TipJar` facets) on a local single-validator Besu QBFT network, via web3j 5.
 Contracts are owned by a **Hardhat 2** workspace in `hardhat/` (compile + contract
-tests); the JVM app consumes the artifacts. Builds need **Node.js + npm**; Docker is
-only needed to run the node and the Testcontainers e2e test.
+tests + deployment); the JVM app consumes the artifacts. Builds need **Node.js + npm**;
+Docker is only needed to run the node and the Testcontainers e2e test.
 
 ## Commands
 
@@ -53,14 +54,13 @@ chain). The contract tests catch this at build time.
 
 ## Build pipeline (pom.xml)
 
-`generate-sources` runs three `exec-maven-plugin` executions: `npm ci` (installs
-Hardhat, pinned by `package-lock.json`), `npx hardhat compile` (compiles `contracts/`
-with the evmVersion from `hardhat.config.js`), then `scripts/export-web3j-artifacts.js`
-flattens the Hardhat artifacts into the `.abi`/`.bin` files web3j codegen consumes to
-produce the typed wrapper `io.shudong.tipjar.contracts.TipJar` under
-`target/generated-sources/web3j`. Everything downstream (services, tests) is written
-against this wrapper. A fourth execution runs `npx hardhat test` in the `test` phase
-(honors `-DskipTests`).
+`generate-sources` runs `exec-maven-plugin` executions: `npm ci` (installs Hardhat,
+pinned by `package-lock.json`), `npx hardhat compile` (evmVersion from
+`hardhat.config.js`), then `scripts/export-web3j-artifacts.js` flattens the Hardhat
+artifacts into `.abi`/`.bin` files, from which web3j codegen produces typed wrappers
+for the two facets the app loads (`TipJarFacet`, `OwnershipFacet` — one codegen
+execution each) under `target/generated-sources/web3j`. A final execution runs
+`npx hardhat test` in the `test` phase (honors `-DskipTests`).
 
 Deliberate choices, do not "simplify" them away:
 
@@ -74,6 +74,22 @@ Deliberate choices, do not "simplify" them away:
   and most references target Hardhat 2; revisit Hardhat 3 when they've caught up.
 - `maven-compiler-plugin`'s default executions are disabled and re-registered so the Kotlin
   compiler runs first and compiles the generated Java wrapper alongside Kotlin sources.
+
+## Diamond rules (EIP-2535, hand-rolled minimal)
+
+- **Storage discipline:** facets must NEVER declare declaration-order state variables —
+  all state lives in namespaced storage structs at hashed slots (`LibDiamond` for
+  routing/ownership, `LibTipJar` for tip state). A facet with plain storage will
+  silently corrupt other facets' state through delegatecall.
+- **Selector collision:** a selector maps to exactly one facet. `owner()` lives in
+  `OwnershipFacet` ONLY — do not add an `owner()` (or any duplicate signature) to
+  another facet; the cut will revert with `FunctionAlreadyExists`.
+- **One deployment choreography:** `hardhat/lib/diamond.js`, used by the deploy script,
+  the JS tests, AND the Kotlin e2e test (which shells out to
+  `npx hardhat run scripts/deploy.js` against the Testcontainers node via
+  `BESU_RPC_URL`) — the tests exercise the production deployment procedure.
+- Adding a facet the app must call also needs: a pom codegen execution for its wrapper
+  and wiring in `TipJarService`. Facets the app doesn't call need no JVM wrapper.
 
 ## Chain setup
 
@@ -89,12 +105,12 @@ are publicly documented dev keys — fine to commit, never reuse elsewhere.
   block period; web3j's default 15s makes event listening laggy) and a chain-id-aware
   `RawTransactionManager` (reads chain id from the node at startup — hence the node-up
   requirement).
-- `TipJarService` talks to the single contract configured via `web3.contract-address`
-  (the yml default is the deterministic first-deploy address on a fresh chain —
-  sender + nonce 0); tip history is reconstructed via `eth_getLogs` filtered on the
-  `Tipped` event topic (no local state). Deployment is Hardhat's job
-  (`scripts/deploy.js`), not the app's; switching contracts requires a config
-  change + restart.
+- `TipJarService` loads the `TipJarFacet` + `OwnershipFacet` wrappers at the single
+  diamond address configured via `web3.contract-address` (the yml default is the
+  deterministic diamond address on a fresh chain — sender + nonce 4, after the 4 facet
+  deploys); tip history is reconstructed via `eth_getLogs` filtered on the `Tipped`
+  event topic (no local state). Deployment is Hardhat's job (`scripts/deploy.js`), not
+  the app's; switching contracts requires a config change + restart.
 - `TippedEventLogger` subscribes at startup to a **topic-only** filter (no address), so it
   logs tips to every TipJar instance, including ones deployed later. It watches from
   LATEST — historical tips are `/tips`' job.
