@@ -31,7 +31,7 @@ class TippedEventLogger(private val web3j: Web3j) {
         ).addSingleTopic(EventEncoder.encode(TipJarFacet.TIPPED_EVENT))
         subscription = web3j.ethLogFlowable(filter).subscribe(
             { eventLog ->
-                val event = TipJarFacet.getTippedEventFromLog(eventLog)
+                val event = TippedEvents.fromLog(eventLog)
                 log.info(
                     "Tipped {} wei from {} — \"{}\" (contract={}, block={}, tx={})",
                     event.amount,

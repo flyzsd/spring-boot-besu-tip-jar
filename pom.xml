@@ -19,9 +19,10 @@
 
     <properties>
         <java.version>21</java.version>
-        <kotlin.version>2.4.0</kotlin.version>
+        <kotlin.version>2.2.21</kotlin.version>
         <kotlin.compiler.jvmTarget>${java.version}</kotlin.compiler.jvmTarget>
         <web3j.version>5.0.3</web3j.version>
+        <web3j.codegen.version>4.9.4</web3j.codegen.version>
         <skipTests>false</skipTests>
     </properties>
 
@@ -208,7 +209,7 @@
                     <dependency>
                         <groupId>org.web3j</groupId>
                         <artifactId>codegen</artifactId>
-                        <version>${web3j.version}</version>
+                        <version>${web3j.codegen.version}</version>
                     </dependency>
                 </dependencies>
             </plugin>

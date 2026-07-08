@@ -72,6 +72,10 @@ Deliberate choices, do not "simplify" them away:
   moves between compiler releases.
 - Hardhat is pinned to the 2.x line deliberately: the diamond-pattern plugin ecosystem
   and most references target Hardhat 2; revisit Hardhat 3 when they've caught up.
+- Kotlin 2.2.21 and web3j codegen 4.9.4 come from an enterprise-approved version list —
+  do NOT "upgrade" them without checking that list. codegen 4.9.4 + core 5.0.3 is a
+  deliberate split; the missing generated `getTippedEventFromLog` helper is replicated
+  in `service/TippedEvents.kt`.
 - `maven-compiler-plugin`'s default executions are disabled and re-registered so the Kotlin
   compiler runs first and compiles the generated Java wrapper alongside Kotlin sources.
 

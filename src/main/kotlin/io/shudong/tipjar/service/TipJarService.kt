@@ -98,7 +98,7 @@ class TipJarService(
         ).addSingleTopic(EventEncoder.encode(TipJarFacet.TIPPED_EVENT))
         return web3j.ethGetLogs(filter).send().logs.map {
             val log = (it as EthLog.LogObject).get()
-            val event = TipJarFacet.getTippedEventFromLog(log)
+            val event = TippedEvents.fromLog(log)
             TipEntry(
                 from = event.from,
                 amountWei = event.amount,
