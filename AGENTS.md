@@ -9,6 +9,10 @@ approach that works in every target environment and remove the alternatives. Do 
 parallel options around (Maven profiles, feature flags, opt-in fallbacks, "legacy" paths)
 — they drift apart and double the maintenance surface.
 
+**Commit attribution.** AI-authored commits use the generic trailer
+`Co-Authored-By: Claude <noreply@anthropic.com>` — no model names (they go stale and
+may not match the actual running model).
+
 **Mocking: springmockk only.** When a test needs mocks, use MockK via springmockk
 (`@MockkBean`), never Mockito/`@MockitoBean` — it's the Kotlin-friendly flavor (no
 final-class friction, `every { }` DSL). Mocks are for the web slice only; contract and
