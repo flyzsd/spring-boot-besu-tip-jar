@@ -26,10 +26,13 @@ subtask(TASK_COMPILE_SOLIDITY_GET_SOLC_BUILD, async (args, hre, runSuper) => {
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   solidity: {
-    version: "0.8.30",
+    // Enterprise-approved compiler version; 0.8.26 supports at most the cancun EVM
+    // target (prague needs solc >= 0.8.27)
+    version: "0.8.26",
     settings: {
-      // Must not exceed the newest fork activated in besu/genesis.json (see AGENTS.md)
-      evmVersion: "prague",
+      // Must not exceed the newest fork activated in besu/genesis.json (see AGENTS.md);
+      // older-than-chain targets are safe
+      evmVersion: "cancun",
       optimizer: { enabled: true, runs: 200 },
     },
   },

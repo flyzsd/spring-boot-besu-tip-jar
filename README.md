@@ -11,8 +11,9 @@ local [Hyperledger Besu](https://besu.hyperledger.org/) dev network using
 | Component | Version |
 |---|---|
 | Spring Boot | 4.1.0 |
-| Kotlin | 2.4.0 (Java 21) |
-| web3j | 5.0.3 |
+| Kotlin | 2.2.21 (Java 21) |
+| web3j | 5.0.3 (codegen 4.9.4) |
+| Solidity | 0.8.26 via npm solc, cancun EVM target |
 | Hardhat | 2.x (contract compile + tests) |
 | Maven | wrapper included (`./mvnw`) |
 | Besu | 26.6.1, single-validator QBFT via Docker Compose |
@@ -28,13 +29,13 @@ local [Hyperledger Besu](https://besu.hyperledger.org/) dev network using
 Contracts are owned by the [Hardhat](https://hardhat.org) workspace in [`hardhat/`](hardhat/);
 the Maven build drives it (see `pom.xml`). The `generate-sources` phase:
 
-1. **`npm ci`** — installs Hardhat *and the compiler*: solc 0.8.30 comes from the npm
+1. **`npm ci`** — installs Hardhat *and the compiler*: solc 0.8.26 comes from the npm
    `solc` package (a subtask override in [`hardhat.config.js`](hardhat/hardhat.config.js)
    points Hardhat at its embedded `soljson.js`), so no compiler is ever downloaded from
    `binaries.soliditylang.org` — the npm registry is the single delivery channel,
    which matters in restricted networks.
 2. **`npx hardhat compile`** — compiles the diamond contracts under
-   [`hardhat/contracts/`](hardhat/contracts/) with **`evmVersion: prague`** pinned in the
+   [`hardhat/contracts/`](hardhat/contracts/) with **`evmVersion: cancun`** pinned in the
    config (solc's default EVM target moves between releases). The EVM target must not be
    newer than the latest fork activated in [`besu/genesis.json`](besu/genesis.json)
    (`pragueTime: 0`), otherwise deployment fails with `Invalid opcode` (e.g. `PUSH0` on a
@@ -228,7 +229,7 @@ Three complementary suites:
   TipJar behaviors through the diamond, and [`hardhat/test/Diamond.test.js`](hardhat/test/Diamond.test.js)
   covers the diamond machinery itself (loupe introspection, unknown-selector dispatch,
   owner-gated cuts, Add/Replace/Remove upgrades) — all on the in-process Hardhat Network
-  (`hardfork: prague`), ~1s, no node or Docker, against the same prague bytecode the build
+  (`hardfork: prague`), ~1s, no node or Docker, against the same cancun-target bytecode the build
   deploys. Run standalone with `npx hardhat test` from `hardhat/`.
 - **Integration tests** — [`TipJarApiIntegrationTest`](src/test/kotlin/io/shudong/tipjar/TipJarApiIntegrationTest.kt)
   boots the real `hyperledger/besu` image via Testcontainers with the same [`besu/`](besu/)
@@ -240,7 +241,7 @@ Three complementary suites:
 
 ## Notes
 
-- The EVM target is pinned explicitly in `hardhat.config.js` (`evmVersion: "prague"`)
+- The EVM target is pinned explicitly in `hardhat.config.js` (`evmVersion: "cancun"` — the max solc 0.8.26 supports)
   because solc's default moves between releases; `web3j-maven-plugin` was rejected
   for the same reason (no way to pass `--evm-version`).
 - Hardhat is deliberately on the 2.x line: the diamond-pattern plugin ecosystem and

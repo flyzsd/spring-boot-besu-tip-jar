@@ -41,11 +41,12 @@ cd hardhat && npx hardhat run scripts/deploy.js --network besu  # deploy TipJar 
 ## The one invariant that breaks everything
 
 **The solc EVM target must not exceed the newest fork activated in the chain genesis.**
-Two files encode this and must stay in sync:
+Older-than-chain targets are safe (forks are backwards compatible). Two files encode
+this and must stay in sync:
 
-- `hardhat/hardhat.config.js` → `evmVersion: "prague"` (compile target) and
-  `networks.hardhat.hardfork: "prague"` (test EVM fork — keeps the contract tests
-  running the same fork they compile for)
+- `hardhat/hardhat.config.js` → `evmVersion: "cancun"` (compile target — the max solc
+  0.8.26 supports; prague needs solc >= 0.8.27) and `networks.hardhat.hardfork: "prague"`
+  (test EVM fork — mirrors the real chain, which may be newer than the compile target)
 - `besu/genesis.json` → `pragueTime: 0` (real node; genesis changes need `docker compose down && up`)
 
 If the compiler targets a newer fork than a chain activates, deployment fails with
@@ -72,10 +73,10 @@ Deliberate choices, do not "simplify" them away:
   moves between compiler releases.
 - Hardhat is pinned to the 2.x line deliberately: the diamond-pattern plugin ecosystem
   and most references target Hardhat 2; revisit Hardhat 3 when they've caught up.
-- Kotlin 2.2.21 and web3j codegen 4.9.4 come from an enterprise-approved version list —
-  do NOT "upgrade" them without checking that list. codegen 4.9.4 + core 5.0.3 is a
-  deliberate split; the missing generated `getTippedEventFromLog` helper is replicated
-  in `service/TippedEvents.kt`.
+- Kotlin 2.2.21, web3j codegen 4.9.4, and solc 0.8.26 come from an enterprise-approved
+  version list — do NOT "upgrade" them without checking that list. codegen 4.9.4 +
+  core 5.0.3 is a deliberate split; the missing generated `getTippedEventFromLog`
+  helper is replicated in `service/TippedEvents.kt`.
 - `maven-compiler-plugin`'s default executions are disabled and re-registered so the Kotlin
   compiler runs first and compiles the generated Java wrapper alongside Kotlin sources.
 
