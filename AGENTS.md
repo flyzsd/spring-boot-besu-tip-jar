@@ -77,6 +77,13 @@ Deliberate choices, do not "simplify" them away:
 
 ## Supply chain
 
+- External hosts the build needs: Maven Central and the npm registry — nothing else.
+  solc comes from the npm `solc` package via a `TASK_COMPILE_SOLIDITY_GET_SOLC_BUILD`
+  subtask override in `hardhat.config.js` (WASM build; identical bytecode, sub-second
+  for this codebase), NOT from Hardhat's default `binaries.soliditylang.org` download.
+  When bumping the solidity version, bump the npm `solc` package in lockstep — the
+  override fails the build loudly if they diverge. Docker Hub is needed only for
+  `hyperledger/besu` (node + e2e test).
 - Dependabot watches maven, npm (`/hardhat`), and github-actions weekly; it is configured
   to never propose the Hardhat 3 major (deliberate 2.x pin).
 - `vertx-core` is excluded from web3j core — it's tuweni-bytes' optional Buffer interop,

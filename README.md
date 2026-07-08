@@ -28,8 +28,11 @@ local [Hyperledger Besu](https://besu.hyperledger.org/) dev network using
 Contracts are owned by the [Hardhat](https://hardhat.org) workspace in [`hardhat/`](hardhat/);
 the Maven build drives it (see `pom.xml`). The `generate-sources` phase:
 
-1. **`npm ci`** — installs Hardhat, pinned by `package-lock.json` (solc 0.8.30 is
-   fetched by Hardhat per [`hardhat.config.js`](hardhat/hardhat.config.js)).
+1. **`npm ci`** — installs Hardhat *and the compiler*: solc 0.8.30 comes from the npm
+   `solc` package (a subtask override in [`hardhat.config.js`](hardhat/hardhat.config.js)
+   points Hardhat at its embedded `soljson.js`), so no compiler is ever downloaded from
+   `binaries.soliditylang.org` — the npm registry is the single delivery channel,
+   which matters in restricted networks.
 2. **`npx hardhat compile`** — compiles the diamond contracts under
    [`hardhat/contracts/`](hardhat/contracts/) with **`evmVersion: prague`** pinned in the
    config (solc's default EVM target moves between releases). The EVM target must not be

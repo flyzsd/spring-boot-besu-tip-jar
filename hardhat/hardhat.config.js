@@ -1,6 +1,28 @@
 require("@nomicfoundation/hardhat-ethers");
 require("@nomicfoundation/hardhat-chai-matchers");
 
+const { subtask } = require("hardhat/config");
+const { TASK_COMPILE_SOLIDITY_GET_SOLC_BUILD } = require("hardhat/builtin-tasks/task-names");
+
+// Use the compiler embedded in the npm `solc` package instead of letting Hardhat
+// download one from binaries.soliditylang.org — the npm registry (mirrorable in
+// restricted networks) stays the single delivery channel for the whole toolchain.
+subtask(TASK_COMPILE_SOLIDITY_GET_SOLC_BUILD, async (args, hre, runSuper) => {
+  const solc = require("solc/package.json");
+  const solcVersion = solc.version.split("+")[0];
+  if (args.solcVersion !== solcVersion) {
+    throw new Error(
+      `hardhat.config.js pins solidity ${args.solcVersion} but the npm solc package is ${solcVersion} — keep them in sync`
+    );
+  }
+  return {
+    compilerPath: require.resolve("solc/soljson.js"),
+    isSolcJs: true,
+    version: args.solcVersion,
+    longVersion: solc.version,
+  };
+});
+
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   solidity: {
