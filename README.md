@@ -24,6 +24,24 @@ local [Hyperledger Besu](https://besu.hyperledger.org/) dev network using
 - Node.js + npm (Hardhat compiles and tests the contracts during the build)
 - Docker (used for the Besu node and the Testcontainers integration test — not for the build)
 
+## Quick start (fresh clone to first tip)
+
+```bash
+./mvnw clean package                # 1. build + all tests (installs npm deps, compiles contracts)
+docker compose up -d                # 2. start the Besu QBFT node
+cd hardhat && npx hardhat run scripts/deploy.js --network besu && cd ..   # 3. deploy the diamond
+./mvnw spring-boot:run              # 4. run the app (new terminal)
+
+# 5. first tip
+curl -X POST http://localhost:8080/api/tipjar/tip \
+  -H 'Content-Type: application/json' \
+  -d '{"message": "hello", "amountWei": 1000}'
+```
+
+On a fresh chain, step 3 lands the diamond exactly on the address preconfigured in
+`application.yml` — no config editing needed. Steps are detailed in the numbered
+sections below.
+
 ## Build pipeline
 
 Contracts are owned by the [Hardhat](https://hardhat.org) workspace in [`hardhat/`](hardhat/);
@@ -89,23 +107,14 @@ The app signs as dev account #1 (`0xfe3b557e8fb62b89f4916b721be55ceb828dbd73`); 
 is configured in [`application.yml`](src/main/resources/application.yml) — it is a publicly
 documented dev key, never use it outside local development.
 
-## 2. Run the app
+## 2. Deploy the contract
+
+**Nothing deploys to your node automatically** — not the Maven build (compiles only),
+not the tests (in-process Hardhat Network / throwaway Testcontainers node), and not app
+startup (the app is a pure client of an already-deployed diamond). The one and only
+deployment path is the Hardhat script:
 
 ```bash
-./mvnw spring-boot:run
-```
-
-On startup the app connects to the RPC URL (`http://localhost:8545` by default) and reads the
-node's chain id, so the Besu node must be running first.
-
-## 3. Deploy the contract
-
-Deployment is owned by the Hardhat workspace (the app only *talks to* a deployed contract):
-
-```bash
-# sanity-check connectivity
-curl http://localhost:8080/api/contract/node-info
-
 # deploy the TipJar diamond (4 facets + diamond, 5 transactions)
 cd hardhat && npx hardhat run scripts/deploy.js --network besu
 ```
@@ -128,6 +137,17 @@ dev account #1 (contract addresses derive from sender + nonce), so on a clean
 `docker compose up` the deploy above matches the config out of the box. If the
 account has sent other transactions, paste the printed diamond address into
 `application.yml` and restart the app.
+
+## 3. Run the app
+
+```bash
+./mvnw spring-boot:run
+```
+
+On startup the app connects to the RPC URL (`http://localhost:8545` by default), reads the
+node's chain id, and logs the node/signer/contract binding — the Besu node must be running
+first. It does NOT check that the diamond exists; if you skipped the deploy step, the app
+boots fine but every `/api/tipjar` call returns `400` until the contract is there.
 
 ## 4. Interact with the contract
 
